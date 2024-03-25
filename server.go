@@ -19,10 +19,6 @@ func main() {
 
 	fmt.Println("Started Listening")
 
-	if err != nil {
-		panic(err)
-	}
-
 	for {
 		conn, err := ln.Accept()
 
@@ -39,7 +35,7 @@ func main() {
 			defer func() {
 				fmt.Println(
 					conn.RemoteAddr(),
-					"Closed",
+					"Closed Connection",
 				)
 
 				conn.Close()
@@ -48,8 +44,7 @@ func main() {
 			block, blockErr := aes.NewCipher(key)
 
 			if blockErr != nil {
-				fmt.Println("Error creating cipher:", blockErr)
-
+				fmt.Println("Creating Cipher Error:", blockErr)
 				return
 			}
 
@@ -67,7 +62,6 @@ func main() {
 
 			if len(iv) < aes.BlockSize {
 				fmt.Println("Invalid IV length:", len(iv))
-
 				return
 			}
 
