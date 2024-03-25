@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+
+	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
 func main() {
+
+	fmt.Println(oqs.EnabledKEMs())
+
 	ln, err := net.Listen("tcp", "127.0.0.1:9080")
 
 	if err != nil {
