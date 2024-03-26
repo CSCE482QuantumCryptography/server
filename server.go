@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"fmt"
 	"io"
+	"log"
 	"net"
 
 	"github.com/open-quantum-safe/liboqs-go/oqs"
@@ -12,15 +13,11 @@ import (
 
 func main() {
 
-	fmt.Println(oqs.EnabledKEMs())
-
 	ln, err := net.Listen("tcp", "127.0.0.1:9080")
 
 	if err != nil {
 		panic(err)
 	}
-
-	key := []byte("example key 1234")
 
 	fmt.Println("Started Listening")
 
@@ -46,14 +43,42 @@ func main() {
 				conn.Close()
 			}()
 
-			block, blockErr := aes.NewCipher(key)
+			// KEM
+			kemName := "Kyber512"
+			clientPubKey := make([]byte, 800)
+			_, pubKeyReadErr := conn.Read(clientPubKey)
+
+			if pubKeyReadErr != nil {
+				panic("Error reading client public key!")
+			}
+
+			fmt.Println("Received client public key!")
+
+			server := oqs.KeyEncapsulation{}
+			defer server.Clean() // clean up even in case of panic
+
+			if err := server.Init(kemName, nil); err != nil {
+				panic(err)
+			}
+
+			ciphertext, sharedSecretServer, err := server.EncapSecret(clientPubKey)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Println("Sending client shared secret in cipher!")
+
+			conn.Write(ciphertext)
+
+			// AES
+			block, blockErr := aes.NewCipher(sharedSecretServer)
 
 			if blockErr != nil {
 				fmt.Println("Creating Cipher Error:", blockErr)
 				return
 			}
 
-			iv := make([]byte, 16)
+			iv := make([]byte, 32)
 
 			ivReadLen, ivReadErr := conn.Read(iv)
 
