@@ -52,6 +52,8 @@ func main() {
 				panic("Error reading client public key!")
 			}
 
+			fmt.Println("Received client public key!")
+
 			server := oqs.KeyEncapsulation{}
 			defer server.Clean() // clean up even in case of panic
 
@@ -63,6 +65,8 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
+
+			fmt.Println("Sending client shared secret in cipher!")
 
 			conn.Write(ciphertext)
 
