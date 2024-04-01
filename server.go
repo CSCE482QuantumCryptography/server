@@ -3,15 +3,37 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 
+	"github.com/CSCE482QuantumCryptography/qs509"
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
 func main() {
+
+	qs509.Init("../../build/bin/openssl", "../../openssl/apps/openssl.cnf")
+
+	var d3_sa qs509.SignatureAlgorithm
+	d3_sa.Set("DILITHIUM3")
+
+	_, err2 := qs509.GenerateCsr(d3_sa, "server_private_key.key", "server_csr.csr")
+	if err2 != nil {
+		panic(err2.Error())
+	}
+
+	qs509.SignCsr("./server_csr.csr", "server_signed_crt.crt", "../qs509/etc/crt/dilithium3_CA.crt", "../qs509/etc/keys/dilithium3_CA.key")
+
+	serverCertFile, err := os.ReadFile("server_signed_crt.crt")
+	if err != nil {
+		panic(err)
+	}
+	serverCertLen := make([]byte, 4)
+	binary.BigEndian.PutUint32(serverCertLen, uint32(len(serverCertFile)))
 
 	ln, err := net.Listen("tcp", "127.0.0.1:9080")
 
@@ -42,6 +64,17 @@ func main() {
 
 				conn.Close()
 			}()
+
+			// Cert Auth
+			_, err = conn.Write(serverCertLen)
+			if err != nil {
+				panic(err)
+			}
+
+			_, err = conn.Write(serverCertFile)
+			if err != nil {
+				panic(err)
+			}
 
 			// KEM
 			kemName := "Kyber512"
