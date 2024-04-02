@@ -3,7 +3,7 @@ module github.com/CSCE482QuantumCryptography/server
 go 1.22.1
 
 require (
-	github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240401191116-44d3c87016a3 // indirect
+	github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240402011436-4177e2e5acf1 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/open-quantum-safe/liboqs-go v0.0.0-20231213144725-40a88a1ffb5a // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect

@@ -2,6 +2,8 @@ github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240401184313-d57a6dae3bbe h
 github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240401184313-d57a6dae3bbe/go.mod h1:dKk0Dg6HkIRqLaX9SfpRW8n2UexWIn0sGe/W93i0bHY=
 github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240401191116-44d3c87016a3 h1:fQJr4cM0DueGkctHTh32hris748DgsyXkjeduRnyGL0=
 github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240401191116-44d3c87016a3/go.mod h1:dKk0Dg6HkIRqLaX9SfpRW8n2UexWIn0sGe/W93i0bHY=
+github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240402011436-4177e2e5acf1 h1:A4IegX4B2Csu42HCB286E4wtx1V1okdPXU1SP/oKMlQ=
+github.com/CSCE482QuantumCryptography/qs509 v0.0.0-20240402011436-4177e2e5acf1/go.mod h1:dKk0Dg6HkIRqLaX9SfpRW8n2UexWIn0sGe/W93i0bHY=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9M+97sNutRR1RKhG96O6jWumTTnw=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
 github.com/open-quantum-safe/liboqs-go v0.0.0-20231213144725-40a88a1ffb5a h1:lwH27XdusosGfK5s5MXTmXzn4ivcCEiHv4RCbKnlVL0=
