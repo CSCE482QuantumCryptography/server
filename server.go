@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -16,12 +17,21 @@ import (
 
 func main() {
 
-	qs509.Init("../../build/bin/openssl", "../../openssl/apps/openssl.cnf")
+	opensslPath := flag.String("openssl-path", "../../build/bin/openssl", "the path to openssl 3.3")
+	opensslCNFPath := flag.String("openssl-cnf-path", "../../openssl/apps/openssl.cnf", "the path to openssl config")
+	src := flag.String("dst", "127.0.0.1:9080", "the path address being listened on")
+	signingAlg := flag.String("sa", "DILITHIUM3", "the algorithm used to sign the client certificate")
+	kemAlg := flag.String("ka", "Kyber512", "the algorithm used for generating shared secret")
 
-	var d3_sa qs509.SignatureAlgorithm
-	d3_sa.Set("DILITHIUM3")
+	// Parse flags
+	flag.Parse()
 
-	_, err2 := qs509.GenerateCsr(d3_sa, "server_private_key.key", "server_csr.csr")
+	qs509.Init(*opensslPath, *opensslCNFPath)
+
+	var sa qs509.SignatureAlgorithm
+	sa.Set(*signingAlg)
+
+	_, err2 := qs509.GenerateCsr(sa, "server_private_key.key", "server_csr.csr")
 	if err2 != nil {
 		panic(err2.Error())
 	}
@@ -37,7 +47,7 @@ func main() {
 
 	fmt.Println("Server Certificate Size: ", len(serverCertFile))
 
-	ln, err := net.Listen("tcp", "127.0.0.1:9080")
+	ln, err := net.Listen("tcp", *src)
 
 	if err != nil {
 		panic(err)
@@ -108,8 +118,15 @@ func main() {
 			fmt.Println()
 
 			// KEM
-			kemName := "Kyber512"
-			clientPubKey := make([]byte, 800)
+			kemName := *kemAlg
+			server := oqs.KeyEncapsulation{}
+			defer server.Clean() // clean up even in case of panic
+
+			if err := server.Init(kemName, nil); err != nil {
+				panic(err)
+			}
+
+			clientPubKey := make([]byte, server.Details().LengthPublicKey)
 			_, pubKeyReadErr := conn.Read(clientPubKey)
 
 			if pubKeyReadErr != nil {
@@ -117,13 +134,6 @@ func main() {
 			}
 
 			fmt.Println("Received client public key!")
-
-			server := oqs.KeyEncapsulation{}
-			defer server.Clean() // clean up even in case of panic
-
-			if err := server.Init(kemName, nil); err != nil {
-				panic(err)
-			}
 
 			ciphertext, sharedSecretServer, err := server.EncapSecret(clientPubKey)
 			if err != nil {
@@ -142,7 +152,7 @@ func main() {
 				return
 			}
 
-			iv := make([]byte, 32)
+			iv := make([]byte, block.BlockSize())
 
 			ivReadLen, ivReadErr := conn.Read(iv)
 
