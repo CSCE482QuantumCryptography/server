@@ -53,7 +53,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Started Listening")
+	fmt.Println("Started Listening on: ", *src)
 
 	for {
 		conn, err := ln.Accept()
