@@ -15,6 +15,19 @@ import (
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
+func readFromClient(conn net.Conn, buf []byte, readLen int) (int, error) {
+	totalRead := 0
+	for totalRead < readLen {
+		n, err := conn.Read(buf[totalRead:])
+		if err != nil {
+			return 0, err
+		}
+		totalRead += n
+	}
+	return totalRead, nil
+
+}
+
 func main() {
 
 	opensslPath := flag.String("openssl-path", "../../build/bin/openssl", "the path to openssl 3.3")
@@ -91,17 +104,18 @@ func main() {
 
 			fmt.Println("Reading Client Certificate!")
 			clientCertLenBytes := make([]byte, 4)
-			_, err = conn.Read(clientCertLenBytes)
+			_, err := readFromClient(conn, clientCertLenBytes, 4)
 			if err != nil {
 				panic(err)
 			}
+
 			clientCertLenInt := int(binary.BigEndian.Uint32(clientCertLenBytes))
 
 			fmt.Println("Client Cert Size: ", clientCertLenInt)
 
 			clientCertFile := make([]byte, clientCertLenInt)
-			_, err = conn.Read(clientCertFile)
-			if err != nil && err != io.EOF {
+			_, err = readFromClient(conn, clientCertFile, clientCertLenInt)
+			if err != nil {
 				panic(err)
 			}
 
@@ -127,10 +141,9 @@ func main() {
 			}
 
 			clientPubKey := make([]byte, server.Details().LengthPublicKey)
-			_, pubKeyReadErr := conn.Read(clientPubKey)
-
-			if pubKeyReadErr != nil {
-				panic("Error reading client public key!")
+			_, err = readFromClient(conn, clientPubKey, server.Details().LengthPublicKey)
+			if err != nil {
+				panic(err)
 			}
 
 			fmt.Println("Received client public key!")
@@ -154,12 +167,9 @@ func main() {
 
 			iv := make([]byte, block.BlockSize())
 
-			ivReadLen, ivReadErr := conn.Read(iv)
-
-			if ivReadErr != nil {
-				fmt.Println("Can't read IV:", ivReadErr)
-
-				return
+			ivReadLen, err := readFromClient(conn, iv, block.BlockSize())
+			if err != nil {
+				panic(err)
 			}
 
 			iv = iv[:ivReadLen]
