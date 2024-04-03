@@ -19,7 +19,7 @@ func main() {
 
 	opensslPath := flag.String("openssl-path", "../../build/bin/openssl", "the path to openssl 3.3")
 	opensslCNFPath := flag.String("openssl-cnf-path", "../../openssl/apps/openssl.cnf", "the path to openssl config")
-	src := flag.String("dst", "127.0.0.1:9080", "the path address being listened on")
+	src := flag.String("src", "127.0.0.1:9080", "the path address being listened on")
 	signingAlg := flag.String("sa", "DILITHIUM3", "the algorithm used to sign the client certificate")
 	kemAlg := flag.String("ka", "Kyber512", "the algorithm used for generating shared secret")
 
