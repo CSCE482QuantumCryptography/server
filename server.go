@@ -4,29 +4,65 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/CSCE482QuantumCryptography/qs509"
 	"github.com/open-quantum-safe/liboqs-go/oqs"
 )
 
+func readFromClient(conn net.Conn, buf []byte, readLen int) (int, error) {
+	totalRead := 0
+	for totalRead < readLen {
+		n, err := conn.Read(buf[totalRead:])
+		if err != nil {
+			return 0, err
+		}
+		totalRead += n
+	}
+	return totalRead, nil
+
+}
+
 func main() {
 
-	qs509.Init("../../build/bin/openssl", "../../openssl/apps/openssl.cnf")
+	timeMap := make(map[string][]time.Time)
 
-	var d3_sa qs509.SignatureAlgorithm
-	d3_sa.Set("DILITHIUM3")
+	opensslPath := flag.String("openssl-path", "../../build/bin/openssl", "the path to openssl 3.3")
+	opensslCNFPath := flag.String("openssl-cnf-path", "../../openssl/apps/openssl.cnf", "the path to openssl config")
+	src := flag.String("src", "127.0.0.1:9080", "the path address being listened on")
+	signingAlg := flag.String("sa", "DILITHIUM3", "the algorithm used to sign the client certificate")
+	kemAlg := flag.String("ka", "Kyber512", "the algorithm used for generating shared secret")
+	caCert := flag.String("ca", "../qs509/etc/crt/dilithium3_CA.crt", "the file location of the ca cert used to sign")
+	caKey := flag.String("ca-key", "../qs509/etc/keys/dilithium3_CA.key", "the file location of the ca key used to sign")
 
-	_, err2 := qs509.GenerateCsr(d3_sa, "server_private_key.key", "server_csr.csr")
+	// Parse flags
+	flag.Parse()
+
+	fileOut := "../" + *signingAlg + "_" + *kemAlg + ".xlsx"
+	qs509.CreateFile(fileOut)
+
+	totalTimeStart := time.Now()
+
+	qs509.Init(*opensslPath, *opensslCNFPath)
+
+	var sa qs509.SignatureAlgorithm
+	sa.Set(*signingAlg)
+
+	signCsrStart := time.Now()
+	_, err2 := qs509.GenerateCsr(sa, "server_private_key.key", "server_csr.csr")
 	if err2 != nil {
 		panic(err2.Error())
 	}
 
-	qs509.SignCsr("./server_csr.csr", "server_signed_crt.crt", "../qs509/etc/crt/dilithium3_CA.crt", "../qs509/etc/keys/dilithium3_CA.key")
+	qs509.SignCsr("./server_csr.csr", "server_signed_crt.crt", *caCert, *caKey)
+	signCsrEnd := time.Now()
+	timeMap["signCsr"] = []time.Time{signCsrStart, signCsrEnd}
 
 	serverCertFile, err := os.ReadFile("server_signed_crt.crt")
 	if err != nil {
@@ -37,13 +73,13 @@ func main() {
 
 	fmt.Println("Server Certificate Size: ", len(serverCertFile))
 
-	ln, err := net.Listen("tcp", "127.0.0.1:9080")
+	ln, err := net.Listen("tcp", *src)
 
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Started Listening")
+	fmt.Println("Started Listening on: ", *src)
 
 	for {
 		conn, err := ln.Accept()
@@ -64,10 +100,16 @@ func main() {
 					"Closed Connection",
 				)
 
+				fmt.Println("writing to file")
+				qs509.BenchmarkMap(timeMap, *signingAlg, *kemAlg, fileOut, "server")
+
 				conn.Close()
 			}()
 
+			writeServerCertStart := time.Now()
 			// Cert Auth
+			certAuthStart := time.Now()
+
 			fmt.Println("Writing my Certificate to Client!")
 			_, err = conn.Write(serverCertLen)
 			if err != nil {
@@ -78,24 +120,32 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+			writeServerCertEnd := time.Now()
+			timeMap["writeServerCert"] = []time.Time{writeServerCertStart, writeServerCertEnd}
 
 			fmt.Println("Reading Client Certificate!")
 			clientCertLenBytes := make([]byte, 4)
-			_, err = conn.Read(clientCertLenBytes)
+
+			readClientCertStart := time.Now()
+			_, err := readFromClient(conn, clientCertLenBytes, 4)
 			if err != nil {
 				panic(err)
 			}
+
 			clientCertLenInt := int(binary.BigEndian.Uint32(clientCertLenBytes))
 
 			fmt.Println("Client Cert Size: ", clientCertLenInt)
 
 			clientCertFile := make([]byte, clientCertLenInt)
-			_, err = conn.Read(clientCertFile)
-			if err != nil && err != io.EOF {
+			_, err = readFromClient(conn, clientCertFile, clientCertLenInt)
+			if err != nil {
 				panic(err)
 			}
+			readClientCertEnd := time.Now()
+			timeMap["readClientCert"] = []time.Time{readClientCertStart, readClientCertEnd}
 
-			isValid, err := qs509.VerifyCertificate("../qs509/etc/crt/dilithium3_CA.crt", clientCertFile)
+			verifyClientCertStart := time.Now()
+			isValid, err := qs509.VerifyCertificate(*caCert, clientCertFile)
 			if err != nil {
 				panic(err)
 			}
@@ -103,21 +153,19 @@ func main() {
 			if !isValid {
 				panic("I dont trust this client!")
 			}
+			verifyClientCertEnd := time.Now()
+			timeMap["verifyClientCert"] = []time.Time{verifyClientCertStart, verifyClientCertEnd}
 
 			fmt.Println("Verified Cert Certificate!")
 			fmt.Println()
 
+			certAuthEnd := time.Now()
+			timeMap["certAuth"] = []time.Time{certAuthStart, certAuthEnd}
+
 			// KEM
-			kemName := "Kyber512"
-			clientPubKey := make([]byte, 800)
-			_, pubKeyReadErr := conn.Read(clientPubKey)
+			kemStart := time.Now()
 
-			if pubKeyReadErr != nil {
-				panic("Error reading client public key!")
-			}
-
-			fmt.Println("Received client public key!")
-
+			kemName := *kemAlg
 			server := oqs.KeyEncapsulation{}
 			defer server.Clean() // clean up even in case of panic
 
@@ -125,16 +173,40 @@ func main() {
 				panic(err)
 			}
 
+			clientPubKey := make([]byte, server.Details().LengthPublicKey)
+
+			readClientPubKeyStart := time.Now()
+			_, err = readFromClient(conn, clientPubKey, server.Details().LengthPublicKey)
+			if err != nil {
+				panic(err)
+			}
+			readClientPubKeyEnd := time.Now()
+			timeMap["readClientPubKey"] = []time.Time{readClientPubKeyStart, readClientPubKeyEnd}
+
+			fmt.Println("Received client public key!")
+
+			encapSecretStart := time.Now()
 			ciphertext, sharedSecretServer, err := server.EncapSecret(clientPubKey)
 			if err != nil {
 				log.Fatal(err)
 			}
+			encapSecretEnd := time.Now()
+			timeMap["encapSecret"] = []time.Time{encapSecretStart, encapSecretEnd}
 
 			fmt.Println("Sending client shared secret in cipher!")
 
+			sendCipherStart := time.Now()
 			conn.Write(ciphertext)
+			sendCipherEnd := time.Now()
+
+			timeMap["sendCipher"] = []time.Time{sendCipherStart, sendCipherEnd}
+
+			kemEnd := time.Now()
+			timeMap["kem"] = []time.Time{kemStart, kemEnd}
 
 			// AES
+			aesStart := time.Now()
+
 			block, blockErr := aes.NewCipher(sharedSecretServer)
 
 			if blockErr != nil {
@@ -142,14 +214,11 @@ func main() {
 				return
 			}
 
-			iv := make([]byte, 32)
+			iv := make([]byte, block.BlockSize())
 
-			ivReadLen, ivReadErr := conn.Read(iv)
-
-			if ivReadErr != nil {
-				fmt.Println("Can't read IV:", ivReadErr)
-
-				return
+			ivReadLen, err := readFromClient(conn, iv, block.BlockSize())
+			if err != nil {
+				panic(err)
 			}
 
 			iv = iv[:ivReadLen]
@@ -167,11 +236,24 @@ func main() {
 
 			buf := make([]byte, 4096)
 
+			aesEnd := time.Now()
+			timeMap["aes"] = []time.Time{aesStart, aesEnd}
+
+			totalTimeEnd := time.Now()
+			timeMap["TotalTime"] = []time.Time{totalTimeStart, totalTimeEnd}
+
 			for {
+
+				readEncryptedMsgStart := time.Now()
 				rLen, rErr := conn.Read(buf)
+				readEncryptedMsgEnd := time.Now()
+				timeMap["readEncryptedMsg"] = []time.Time{readEncryptedMsgStart, readEncryptedMsgEnd}
 
 				if rErr == nil {
+					decryptMsgStart := time.Now()
 					stream.XORKeyStream(buf[:rLen], buf[:rLen])
+					decryptMsgEnd := time.Now()
+					timeMap["decryptMsg"] = []time.Time{decryptMsgStart, decryptMsgEnd}
 
 					fmt.Println("Data:", string(buf[:rLen]), rLen)
 
