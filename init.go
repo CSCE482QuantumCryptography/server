@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"time"
+
+	"github.com/CSCE482QuantumCryptography/qs509"
 )
 
 var opensslPath *string
@@ -27,4 +29,7 @@ func init() {
 	flag.Parse()
 
 	timeMap = make(map[string][]time.Time)
+
+	// Initialize qs509
+	qs509.Init(*opensslPath, *opensslCNFPath)
 }

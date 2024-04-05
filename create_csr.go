@@ -10,8 +10,6 @@ import (
 )
 
 func CreateCsr() ([]byte, []byte, error) {
-	// Initialize qs509 and Create signed certificate for the server
-	qs509.Init(*opensslPath, *opensslCNFPath)
 
 	var sa qs509.SignatureAlgorithm
 	sa.Set(*signingAlg)

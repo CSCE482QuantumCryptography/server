@@ -67,11 +67,26 @@ func main() {
 			timeMap["certAuth"] = []time.Time{certAuthStart, certAuthEnd}
 
 			// KEM
+			var sharedSecretServer []byte
+
 			kemStart := time.Now()
-			sharedSecretServer, err := OqsKem(conn)
-			if err != nil {
-				panic(err)
+			if *kemAlg == "rsa" {
+				sharedSecretServer, err = RSAKem(conn)
+				if err != nil {
+					panic(err)
+				}
+			} else if *kemAlg == "ec" {
+				sharedSecretServer, err = ECKem(conn)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				sharedSecretServer, err = OqsKem(conn)
+				if err != nil {
+					panic(err)
+				}
 			}
+
 			kemEnd := time.Now()
 			timeMap["kem"] = []time.Time{kemStart, kemEnd}
 
