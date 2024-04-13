@@ -51,9 +51,9 @@ func main() {
 					"Closed Connection",
 				)
 
-				fmt.Println("writing to file")
+				fmt.Println("writing results to file")
 				qs509.BenchmarkMap(timeMap, *signingAlg, *kemAlg, fileOut, "server")
-
+				fmt.Println("File written to", fileOut)
 				conn.Close()
 			}()
 
@@ -118,7 +118,7 @@ func main() {
 					decryptMsgEnd := time.Now()
 					timeMap["decryptMsg"] = []time.Time{decryptMsgStart, decryptMsgEnd}
 
-					fmt.Println("Data:", string(buf[:rLen]), rLen)
+					fmt.Println("Data:", string(buf[:rLen]))
 
 					continue
 				}
